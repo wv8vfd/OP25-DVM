@@ -1,0 +1,26 @@
+# OP25-to-DVM Gateway Configuration
+
+# OP25 Receiver Settings
+# Listens for UDP packets from OP25 containing IMBE voice frames
+op25:
+  listenPort: 9999          # UDP port to receive OP25 packets
+
+# DVMProject FNE Connection
+# The gateway connects to the FNE and sends P25 voice frames
+fne:
+  host: "127.0.0.1"         # FNE server address
+  port: 62031               # FNE port
+  password: "PASSWORD"      # FNE password
+  peerId: 9000999           # Peer ID for this gateway
+
+# Gateway Settings
+gateway:
+  talkgroup: 0              # Talkgroup override (0 = use TGID from OP25 packet)
+  sourceId: 9000999         # Source Radio ID to use for transmissions
+  callTimeout: 1000         # Milliseconds of silence before ending a call
+
+# Logging Configuration
+# Levels: DEBUG, INFO, WARN, ERROR
+logging:
+  level: INFO               # Console/file log level
+  file: "gateway.log"       # Log file path (empty to disable file logging)
