@@ -1,0 +1,109 @@
+/* -*- c++ -*- */
+/* 
+ * Copyright 2017 Graham J Norbury, gnorbury@bondcar.com
+ * from op25_audio; rewrite Nov 2017 Copyright 2017 Max H. Parke KA1RBI
+ * 
+ * This is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3, or (at your option)
+ * any later version.
+ * 
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this software; see the file COPYING.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street,
+ * Boston, MA 02110-1301, USA.
+ */
+
+#ifndef INCLUDED_OP25_AUDIO_H
+#define INCLUDED_OP25_AUDIO_H
+
+#include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <thread>
+#include <vector>
+
+#define ASIO_STANDALONE
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+
+#include "log_ts.h"
+
+class op25_audio
+{
+public:
+    enum udpFlagEnumType
+    {
+        DRAIN = 0x0000,  // play queued pcm frames
+        DROP  = 0x0001   // discard queued pcm frames
+    };
+
+private:
+    bool        d_udp_enabled;
+    int         d_debug;
+    int         d_msgq_id;
+    int         d_write_port;
+    int         d_audio_port;
+    char        d_udp_host[128];
+    int         d_write_sock;
+    bool        d_file_enabled;
+    struct      sockaddr_in d_sock_addr;
+    log_ts&     logts;
+
+    // IMBE UDP output
+    bool        d_imbe_enabled;
+    int         d_imbe_sock;
+    int         d_imbe_port;
+    char        d_imbe_host[128];
+    struct      sockaddr_in d_imbe_sock_addr;
+
+    void open_socket();
+    void close_socket();
+    ssize_t do_send(const void * bufp, size_t len, int port, bool is_ctrl);
+
+private:
+    bool        d_ws_enabled;
+    int         d_ws_port;
+    std::string d_ws_host;
+    std::thread ws_thread;
+    websocketpp::server<websocketpp::config::asio> d_ws_endpt;
+    std::vector<websocketpp::connection_hdl> d_ws_connections;
+    void        ws_msg_handler(websocketpp::connection_hdl hdl, websocketpp::server<websocketpp::config::asio>::message_ptr msg);
+    void        ws_open_handler(websocketpp::connection_hdl hdl);
+    void        ws_close_handler(websocketpp::connection_hdl hdl);
+    void        ws_fail_handler(websocketpp::connection_hdl hdl);
+    void        ws_send_audio(const void *buf, size_t len);
+    void        ws_send_audio_flag(const udpFlagEnumType udp_flag);
+    void        ws_start();
+    void        ws_stop();
+
+public:
+    op25_audio(const char* udp_host, int port, log_ts& logger, int debug, int msgq_id);
+    op25_audio(const char* destination, log_ts& logger, int debug, int msgq_id);
+    ~op25_audio();
+
+    inline bool enabled() const { return d_udp_enabled; }
+    inline void set_debug(int debug) { d_debug = debug; }
+
+    ssize_t     send_to(const void *buf, size_t len);
+
+    ssize_t     send_audio(const void *buf, size_t len);
+    ssize_t     send_audio_flag(const udpFlagEnumType udp_flag);
+
+    ssize_t     send_audio_channel(const void *buf, size_t len, ssize_t slot_id);
+    ssize_t     send_audio_flag_channel(const udpFlagEnumType udp_flag, ssize_t slot_id);
+
+    // IMBE frame output
+    void        set_imbe_destination(const char* host, int port);
+    ssize_t     send_imbe(const void *buf, size_t len);
+    inline bool imbe_enabled() const { return d_imbe_enabled; }
+
+}; // class op25_audio
+
+#endif /* INCLUDED_OP25_AUDIO_H */
